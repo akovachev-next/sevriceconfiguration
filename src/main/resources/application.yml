@@ -10,4 +10,4 @@ spring:
     show-sql: true
 
   flyway:
-    enabled: false #true
+    enabled: true
