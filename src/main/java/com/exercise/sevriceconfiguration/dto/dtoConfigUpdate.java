@@ -4,9 +4,6 @@ import java.io.Serializable;
 
 import jakarta.validation.constraints.NotBlank;
 
-public record dtoConfigRequest(
-    @NotBlank String serviceName,
-    @NotBlank String configKey,
+public record dtoConfigUpdate(
     @NotBlank String value
 ) implements Serializable {}
-

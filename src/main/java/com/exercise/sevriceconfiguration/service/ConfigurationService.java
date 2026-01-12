@@ -1,15 +1,18 @@
 package com.exercise.sevriceconfiguration.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.exercise.sevriceconfiguration.dto.dtoConfigRequest;
 import com.exercise.sevriceconfiguration.dto.dtoConfigResponse;
+import com.exercise.sevriceconfiguration.dto.dtoConfigUpdate;
 import com.exercise.sevriceconfiguration.model.ConfigurationEntity;
 import com.exercise.sevriceconfiguration.repo.ConfigurationRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CachePut;
 
 @Service
 public class ConfigurationService {
@@ -20,11 +23,11 @@ public class ConfigurationService {
         this.repository = repository;
     }
 
-    @CacheEvict(value = "configs", key = "#request.serviceName()")
+    @CacheEvict(value = "configs", allEntries = true)
     public void create(dtoConfigRequest request){
         ConfigurationEntity entity = new ConfigurationEntity();
         entity.setServiceName(request.serviceName());
-        entity.setConfigKey(request.key());
+        entity.setConfigKey(request.configKey());
         entity.setConfigValue(request.value());
         repository.save(entity);
     }
@@ -36,4 +39,40 @@ public class ConfigurationService {
         .stream().map(r -> new dtoConfigResponse(r.getConfigKey(), r.getConfigValue()))
         .toList();
     }
+
+    @CachePut(value = "configs", key = "#p0")
+    public List<dtoConfigResponse> update(
+        String serviceName,
+        String configKey,
+        dtoConfigUpdate update) {
+        Optional<ConfigurationEntity> existing =
+            repository.findByServiceName(serviceName)
+                      .stream()
+                      .filter(c -> c.getConfigKey().equals(configKey))
+                      .findFirst();
+
+        if (existing.isPresent()) {
+            ConfigurationEntity entity = existing.get();
+            entity.setConfigValue(update.value());
+            repository.save(entity);
+        } else {
+            ConfigurationEntity entity = new ConfigurationEntity();
+            entity.setServiceName(serviceName);
+            entity.setConfigKey(configKey);
+            entity.setConfigValue(update.value());
+            repository.save(entity);
+        }
+
+        return getByService(serviceName);
+    }
+    
+    @CacheEvict(value = "configs", key = "#p0")
+    public void delete(String serviceName, String configKey) {
+        repository.findByServiceName(serviceName)
+                .stream()
+                .filter(c -> c.getConfigKey().equals(configKey))
+                .findFirst()
+                .ifPresent(repository::delete);
+    }
+
 }
