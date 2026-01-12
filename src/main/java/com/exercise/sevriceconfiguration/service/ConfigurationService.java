@@ -3,6 +3,7 @@ package com.exercise.sevriceconfiguration.service;
 import java.util.List;
 import java.util.Optional;
 
+import com.exercise.sevriceconfiguration.dto.ConfigEvent;
 import com.exercise.sevriceconfiguration.dto.dtoConfigRequest;
 import com.exercise.sevriceconfiguration.dto.dtoConfigResponse;
 import com.exercise.sevriceconfiguration.dto.dtoConfigUpdate;
@@ -18,9 +19,13 @@ import org.springframework.cache.annotation.CachePut;
 public class ConfigurationService {
 
     private final ConfigurationRepository repository;
+    private final ConfigEventProducer producer;
 
-    public ConfigurationService(ConfigurationRepository repository){
+    public ConfigurationService(ConfigurationRepository repository, 
+            ConfigEventProducer producer
+    ){
         this.repository = repository;
+        this.producer = producer;
     }
 
     @CacheEvict(value = "configs", allEntries = true)
@@ -30,6 +35,11 @@ public class ConfigurationService {
         entity.setConfigKey(request.configKey());
         entity.setConfigValue(request.value());
         repository.save(entity);
+        String action = "CREATED";
+        producer.publish(new ConfigEvent(request.serviceName(),
+                                         request.configKey(), 
+                                         request.value(),
+                                         action));
     }
 
     @Cacheable("configs")
@@ -45,6 +55,7 @@ public class ConfigurationService {
         String serviceName,
         String configKey,
         dtoConfigUpdate update) {
+            String action = "";
         Optional<ConfigurationEntity> existing =
             repository.findByServiceName(serviceName)
                       .stream()
@@ -55,14 +66,16 @@ public class ConfigurationService {
             ConfigurationEntity entity = existing.get();
             entity.setConfigValue(update.value());
             repository.save(entity);
+            action = "UPDATED";
         } else {
             ConfigurationEntity entity = new ConfigurationEntity();
             entity.setServiceName(serviceName);
             entity.setConfigKey(configKey);
             entity.setConfigValue(update.value());
             repository.save(entity);
+            action = "CREATED";
         }
-
+        producer.publish(new ConfigEvent(serviceName, configKey, update.value(), action));
         return getByService(serviceName);
     }
     
@@ -72,7 +85,14 @@ public class ConfigurationService {
                 .stream()
                 .filter(c -> c.getConfigKey().equals(configKey))
                 .findFirst()
-                .ifPresent(repository::delete);
+                .ifPresent(entity -> {
+                String oldValue = entity.getConfigValue(); 
+                repository.delete(entity);
+
+                String action = "DELETE";
+                // ConfigEvent event = new ConfigEvent(serviceName, configKey, oldValue, action);
+                producer.publish(new ConfigEvent(serviceName, configKey, oldValue, action));
+            });      
     }
 
 }
