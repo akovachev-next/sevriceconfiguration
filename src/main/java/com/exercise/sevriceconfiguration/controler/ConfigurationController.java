@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 
 @RestController
-@RequestMapping("/configs")
+@RequestMapping("/api/configurations")
 public class ConfigurationController {
     
     private final ConfigurationService service;
@@ -29,13 +29,13 @@ public class ConfigurationController {
         this.service = service;
     }
 
-    @PostMapping("path")
+    @PostMapping
     public void create(@RequestBody @Valid dtoConfigRequest request){
         service.create(request);
     }
 
     @GetMapping("/{serviceName}")
-    public List<dtoConfigResponse> get(@PathVariable String serviceName){
+    public List<dtoConfigResponse> get(@PathVariable("serviceName") String serviceName){
         return service.getByService(serviceName);
     }
     

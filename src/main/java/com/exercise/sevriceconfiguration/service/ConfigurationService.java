@@ -8,6 +8,8 @@ import com.exercise.sevriceconfiguration.model.ConfigurationEntity;
 import com.exercise.sevriceconfiguration.repo.ConfigurationRepository;
 
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 
 @Service
 public class ConfigurationService {
@@ -18,6 +20,7 @@ public class ConfigurationService {
         this.repository = repository;
     }
 
+    @CacheEvict(value = "configs", key = "#request.serviceName()")
     public void create(dtoConfigRequest request){
         ConfigurationEntity entity = new ConfigurationEntity();
         entity.setServiceName(request.serviceName());
@@ -26,7 +29,9 @@ public class ConfigurationService {
         repository.save(entity);
     }
 
+    @Cacheable("configs")
     public List<dtoConfigResponse> getByService(String serviceName){
+        System.out.println(">>> FETCHING FROM DATABASE");
         return repository.findByServiceName(serviceName)
         .stream().map(r -> new dtoConfigResponse(r.getConfigKey(), r.getConfigValue()))
         .toList();

@@ -1,6 +1,6 @@
 package com.exercise.sevriceconfiguration.dto;
 
-public record dtoConfigResponse(
-    String key,
-    String value
-) {}
+import java.io.Serializable;
+
+public record dtoConfigResponse(String key, String value) implements Serializable {
+}
